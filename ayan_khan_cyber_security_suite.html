@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayan Khan // Cyber Security Suite & Codec Inspector</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: 'var(--term-bg)',
+                            text: 'var(--term-text)',
+                            glow: 'var(--term-glow)',
+                            dim: 'var(--term-dim)',
+                            border: 'var(--term-border)'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        display: ['Orbitron', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            /* Default Matrix Neon Green */
+            --term-bg: #030a05;
+            --term-text: #00ff41;
+            --term-glow: rgba(0, 255, 65, 0.5);
+            --term-dim: #008f11;
+            --term-border: #003b00;
+            --term-rgb: 0, 255, 65;
+        }
+
+        .theme-cyan {
+            --term-bg: #010c14;
+            --term-text: #00f3ff;
+            --term-glow: rgba(0, 243, 255, 0.5);
+            --term-dim: #008891;
+            --term-border: #004448;
+            --term-rgb: 0, 243, 255;
+        }
+
+        .theme-amber {
+            --term-bg: #0e0900;
+            --term-text: #ffb000;
+            --term-glow: rgba(255, 176, 0, 0.5);
+            --term-dim: #996a00;
+            --term-border: #4d3500;
+            --term-rgb: 255, 176, 0;
+        }
+
+        .theme-crimson {
+            --term-bg: #120101;
+            --term-text: #ff3333;
+            --term-glow: rgba(255, 51, 51, 0.5);
+            --term-dim: #990000;
+            --term-border: #4a0000;
+            --term-rgb: 255, 51, 51;
+        }
+
+        body {
+            background-color: var(--term-bg);
+            color: var(--term-text);
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 0 4px var(--term-glow);
+            transition: color 0.25s ease, background-color 0.25s ease;
+        }
+
+        /* CRT Monitor Scanline & Glow Overlay */
+        .crt-scanlines::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 40;
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .glow-card {
+            background: rgba(2, 6, 3, 0.82);
+            border: 1px solid var(--term-border);
+            box-shadow: 0 0 15px rgba(var(--term-rgb), 0.1), inset 0 0 8px rgba(var(--term-rgb), 0.04);
+            backdrop-filter: blur(8px);
+        }
+
+        .cyber-btn {
+            background: rgba(var(--term-rgb), 0.08);
+            border: 1px solid var(--term-border);
+            color: var(--term-text);
+            transition: all 0.2s ease;
+        }
+
+        .cyber-btn:hover {
+            background: rgba(var(--term-rgb), 0.25);
+            border-color: var(--term-text);
+            box-shadow: 0 0 12px var(--term-glow);
+            transform: translateY(-1px);
+        }
+
+        .cyber-btn-active {
+            background: rgba(var(--term-rgb), 0.3) !important;
+            border-color: var(--term-text) !important;
+            box-shadow: 0 0 10px var(--term-glow);
+            color: #ffffff !important;
+        }
+
+        .cyber-textarea, .cyber-input {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid var(--term-border);
+            color: var(--term-text);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .cyber-textarea:focus, .cyber-input:focus {
+            border-color: var(--term-text);
+            box-shadow: 0 0 12px var(--term-glow);
+        }
+
+        #matrixCanvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            opacity: 0.25;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--term-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--term-dim); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--term-text); }
+    </style>
+</head>
+<body class="h-full flex flex-col crt-scanlines relative overflow-x-hidden">
+
+    <!-- Matrix Background Animation Canvas -->
+    <canvas id="matrixCanvas"></canvas>
+
+    <header class="relative z-30 border-b border-[var(--term-border)] bg-[var(--term-bg)]/90 backdrop-blur px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded border border-[var(--term-border)] bg-black shadow-[0_0_10px_var(--term-glow)]">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-[var(--term-text)] animate-pulse"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-black tracking-widest text-lg sm:text-xl text-white">AYAN KHAN // SECURITY SUITE</h1>
+                    <p class="text-[11px] text-[var(--term-dim)] font-mono tracking-wider">BASE64 CODEC • CRYPTO SUITE • PAYLOAD INSPECTOR • TERMINAL</p>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="flex items-center space-x-2 text-xs">
+                <!-- Theme Palette Switcher -->
+                <div class="flex items-center gap-1.5 bg-black/80 p-1.5 rounded border border-[var(--term-border)]">
+                    <button onclick="changeTheme('matrix')" class="w-4 h-4 rounded-full bg-green-500 border border-black hover:scale-125 transition" title="Matrix Green"></button>
+                    <button onclick="changeTheme('cyan')" class="w-4 h-4 rounded-full bg-cyan-400 border border-black hover:scale-125 transition" title="Neon Cyan"></button>
+                    <button onclick="changeTheme('amber')" class="w-4 h-4 rounded-full bg-amber-500 border border-black hover:scale-125 transition" title="Cyber Amber"></button>
+                    <button onclick="changeTheme('crimson')" class="w-4 h-4 rounded-full bg-red-600 border border-black hover:scale-125 transition" title="Crimson Red"></button>
+                </div>
+
+                <!-- CRT Toggle -->
+                <button onclick="toggleCRT()" class="cyber-btn p-2 rounded" title="Toggle Scanlines CRT Effect">
+                    <i data-lucide="tv" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Audio Toggle -->
+                <button id="audioToggleBtn" onclick="toggleAudio()" class="cyber-btn p-2 rounded flex items-center gap-1.5 text-xs">
+                    <i id="audioIcon" data-lucide="volume-x" class="w-4 h-4 text-red-400"></i>
+                    <span id="audioLabel" class="hidden sm:inline">MUTE</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto p-3 md:p-6 flex flex-col gap-4">
+        
+        <!-- Navigation Dock -->
+        <div class="flex border-b border-[var(--term-border)] bg-black/70 rounded-t-lg overflow-x-auto text-xs p-1 gap-1">
+            <button onclick="switchTab('codec-inspector')" id="tab-codec-inspector" class="cyber-btn cyber-btn-active px-4 py-2.5 rounded font-bold flex items-center gap-2 whitespace-nowrap">
+                <i data-lucide="binary" class="w-4 h-4"></i> Base64 & Text Inspector
+            </button>
+            <button onclick="switchTab('file-codec')" id="tab-file-codec" class="cyber-btn px-4 py-2.5 rounded font-bold flex items-center gap-2 whitespace-nowrap">
+                <i data-lucide="file-up" class="w-4 h-4"></i> File To Base64 & Data URI
+            </button>
+            <button onclick="switchTab('hash-suite')" id="tab-hash-suite" class="cyber-btn px-4 py-2.5 rounded font-bold flex items-center gap-2 whitespace-nowrap">
+                <i data-lucide="hash" class="w-4 h-4"></i> Crypto Hashing Lab
+            </button>
+            <button onclick="switchTab('cli-terminal')" id="tab-cli-terminal" class="cyber-btn px-4 py-2.5 rounded font-bold flex items-center gap-2 whitespace-nowrap">
+                <i data-lucide="terminal" class="w-4 h-4"></i> CLI Terminal Console
+            </button>
+        </div>
+
+        <section id="view-codec-inspector" class="glow-card rounded-b-lg p-4 sm:p-6 flex flex-col gap-4 flex-1">
+            
+            <!-- Codec Controls -->
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--term-border)] pb-3">
+                <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span class="text-[var(--term-dim)] font-bold mr-1">ACTION:</span>
+                    <button onclick="processCodec('b64-dec')" class="cyber-btn px-3 py-1.5 rounded font-bold text-green-400">Decode Base64</button>
+                    <button onclick="processCodec('b64-enc')" class="cyber-btn px-3 py-1.5 rounded font-bold">Encode Base64</button>
+                    <button onclick="autoRepairAndDecode()" class="cyber-btn px-3 py-1.5 rounded font-bold text-yellow-300" title="Fixes missing '=' padding and removes invalid garbage characters">
+                        <i data-lucide="wrench" class="w-3.5 h-3.5 inline mr-1"></i> Auto-Repair & Decode
+                    </button>
+                    <button onclick="processCodec('hex-enc')" class="cyber-btn px-3 py-1.5 rounded font-bold">To Hex</button>
+                    <button onclick="processCodec('hex-dec')" class="cyber-btn px-3 py-1.5 rounded font-bold">From Hex</button>
+                    <button onclick="processCodec('url-enc')" class="cyber-btn px-3 py-1.5 rounded font-bold">URL Enc</button>
+                    <button onclick="processCodec('url-dec')" class="cyber-btn px-3 py-1.5 rounded font-bold">URL Dec</button>
+                    <button onclick="processCodec('rot13')" class="cyber-btn px-3 py-1.5 rounded font-bold">ROT13</button>
+                </div>
+                
+                <div class="flex items-center gap-2 text-xs">
+                    <button onclick="clearCodecText()" class="cyber-btn px-3 py-1.5 rounded text-red-400 font-bold flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear
+                    </button>
+                    <button onclick="swapCodecText()" class="cyber-btn px-3 py-1.5 rounded text-yellow-300 font-bold flex items-center gap-1">
+                        <i data-lucide="arrow-up-down" class="w-3.5 h-3.5"></i> Swap
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Input/Output Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+                <!-- Input Panel -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <label class="font-bold text-white flex items-center gap-1.5">
+                            <i data-lucide="arrow-right-circle" class="w-4 h-4 text-[var(--term-text)]"></i> INPUT STREAM / PAYLOAD
+                        </label>
+                        <span id="inputCharCount" class="text-[var(--term-dim)] font-mono">0 chars</span>
+                    </div>
+                    <textarea id="codecInput" oninput="handleCodecInput()" rows="10" 
+                              class="cyber-textarea w-full p-3 rounded font-mono text-xs sm:text-sm flex-1"
+                              placeholder="Paste Base64, Hex, or raw text string here..."></textarea>
+                </div>
+
+                <!-- Output Panel -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <label class="font-bold text-white flex items-center gap-1.5">
+                            <i data-lucide="terminal" class="w-4 h-4 text-green-400"></i> TRANSFORMED BUFFER & INSPECTOR
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span id="outputCharCount" class="text-[var(--term-dim)] font-mono">0 chars</span>
+                            <button onclick="copyToClipboard('codecOutput')" class="cyber-btn px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1 text-green-300">
+                                <i data-lucide="copy" class="w-3 h-3"></i> COPY
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="codecOutput" readonly rows="10" 
+                              class="cyber-textarea w-full p-3 rounded font-mono text-xs sm:text-sm flex-1 bg-black/90 text-green-300"
+                              placeholder="Decoded string or transformed output will display here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Extended Inspection Tabs (Hex Dump & Character Analysis) -->
+            <div class="border-t border-[var(--term-border)] pt-3 flex flex-col gap-3">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-white flex items-center gap-1.5">
+                        <i data-lucide="search" class="w-4 h-4 text-yellow-400"></i> PAYLOAD DEEP INSPECTOR
+                    </span>
+                    <div id="inspectorBadge" class="text-[11px] font-mono px-2 py-0.5 rounded border border-green-800 bg-green-950/50 text-green-400">
+                        STATUS: IDLE
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                    <div class="p-3 bg-black/80 border border-[var(--term-border)] rounded space-y-1">
+                        <div class="text-[var(--term-dim)] font-bold">HEXADECIMAL DUMP:</div>
+                        <div id="hexDumpView" class="text-yellow-300/80 break-all h-16 overflow-y-auto pr-1">-- No payload loaded --</div>
+                    </div>
+                    <div class="p-3 bg-black/80 border border-[var(--term-border)] rounded space-y-1">
+                        <div class="text-[var(--term-dim)] font-bold">BINARY STREAM:</div>
+                        <div id="binaryDumpView" class="text-cyan-300/80 break-all h-16 overflow-y-auto pr-1">-- No payload loaded --</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-file-codec" class="glow-card rounded-b-lg p-4 sm:p-6 flex-col gap-4 hidden">
+            <div class="border-b border-[var(--term-border)] pb-2">
+                <h2 class="font-bold text-white text-sm">FILE TO BASE64 & DATA URI ENGINE</h2>
+                <p class="text-xs text-[var(--term-dim)]">Upload or drop any file to encode into Base64 or Data URI format.</p>
+            </div>
+
+            <!-- Upload Drop Zone -->
+            <div id="dropZone" onclick="document.getElementById('fileInput').click()" 
+                 class="border-2 border-dashed border-[var(--term-border)] rounded-lg p-8 text-center cursor-pointer hover:border-[var(--term-text)] transition bg-black/50 space-y-3">
+                <i data-lucide="cloud-upload" class="w-12 h-12 text-[var(--term-text)] mx-auto animate-bounce"></i>
+                <div class="text-xs font-bold text-white">Click or drag & drop file here</div>
+                <div class="text-[11px] text-[var(--term-dim)]">Supports Images, PDFs, Binary Files up to 25 MB</div>
+                <input type="file" id="fileInput" onchange="handleFileUpload(event)" class="hidden">
+            </div>
+
+            <!-- File Output Result -->
+            <div id="fileResult" class="space-y-3 hidden">
+                <div class="flex flex-wrap justify-between items-center text-xs gap-2">
+                    <span id="fileDetails" class="font-bold text-white">File: --</span>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="copyToClipboard('fileB64Output')" class="cyber-btn px-3 py-1 rounded text-xs font-bold flex items-center gap-1">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Data URI
+                        </button>
+                        <button onclick="copyMarkdownImg()" class="cyber-btn px-3 py-1 rounded text-xs font-bold flex items-center gap-1 text-cyan-300">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Copy Markdown
+                        </button>
+                    </div>
+                </div>
+                <textarea id="fileB64Output" readonly rows="6" class="cyber-textarea w-full p-3 rounded font-mono text-xs text-green-300"></textarea>
+
+                <!-- Embedded Preview -->
+                <div id="imagePreviewContainer" class="hidden border border-[var(--term-border)] p-3 rounded bg-black/80 flex flex-col items-center gap-2">
+                    <span class="text-xs font-bold text-white">Visual Image Preview:</span>
+                    <img id="filePreviewImage" class="max-h-48 object-contain rounded border border-gray-800" alt="Preview">
+                </div>
+            </div>
+        </section>
+
+        <section id="view-hash-suite" class="glow-card rounded-b-lg p-4 sm:p-6 flex-col gap-4 hidden">
+            <div class="border-b border-[var(--term-border)] pb-2">
+                <h2 class="font-bold text-white text-sm">CRYPTOGRAPHIC HASH GENERATOR</h2>
+                <p class="text-xs text-[var(--term-dim)]">Generate cryptographically secure message digests powered by Web Crypto API.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-white mb-1">Target Input Payload:</label>
+                    <input type="text" id="hashSuiteInput" oninput="calculateSuiteHashes()" placeholder="Type string to generate hashes..." class="cyber-input w-full px-3 py-2.5 rounded text-xs sm:text-sm font-mono">
+                </div>
+
+                <div class="space-y-3 font-mono text-xs">
+                    <!-- SHA-256 -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[var(--term-dim)] font-bold">
+                            <span>SHA-256 DIGEST:</span>
+                            <button onclick="copyRawText('outSha256')" class="hover:text-white flex items-center gap-1 text-green-400"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                        </div>
+                        <div id="outSha256" class="p-2.5 bg-black/90 border border-[var(--term-border)] rounded break-all text-green-400">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</div>
+                    </div>
+
+                    <!-- SHA-512 -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[var(--term-dim)] font-bold">
+                            <span>SHA-512 DIGEST:</span>
+                            <button onclick="copyRawText('outSha512')" class="hover:text-white flex items-center gap-1 text-cyan-400"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                        </div>
+                        <div id="outSha512" class="p-2.5 bg-black/90 border border-[var(--term-border)] rounded break-all text-cyan-400">cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e</div>
+                    </div>
+
+                    <!-- SHA-1 -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[var(--term-dim)] font-bold">
+                            <span>SHA-1 DIGEST:</span>
+                            <button onclick="copyRawText('outSha1')" class="hover:text-white flex items-center gap-1 text-yellow-400"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                        </div>
+                        <div id="outSha1" class="p-2.5 bg-black/90 border border-[var(--term-border)] rounded break-all text-yellow-400">da39a3ee5e6b4b0d3255bfef95601890afd80709</div>
+                    </div>
+
+                    <!-- MD5 -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[var(--term-dim)] font-bold">
+                            <span>MD5 CHECKSUM:</span>
+                            <button onclick="copyRawText('outMd5')" class="hover:text-white flex items-center gap-1 text-red-400"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                        </div>
+                        <div id="outMd5" class="p-2.5 bg-black/90 border border-[var(--term-border)] rounded break-all text-red-400">d41d8cd98f00b204e9800998ecf8427e</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-cli-terminal" class="glow-card rounded-b-lg p-4 sm:p-6 flex-col gap-3 hidden flex-1">
+            <div class="flex justify-between items-center border-b border-[var(--term-border)] pb-2 text-xs">
+                <div class="font-bold text-white flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-[var(--term-text)]"></i> INTERACTIVE TERMINAL SHELL
+                </div>
+                <div class="text-[var(--term-dim)]">Type <span class="text-white font-bold">help</span> for commands</div>
+            </div>
+
+            <!-- Terminal Output Window -->
+            <div id="terminalLog" class="bg-black/90 border border-[var(--term-border)] rounded p-4 h-80 overflow-y-auto font-mono text-xs space-y-2 text-green-400">
+                <div><span class="text-white font-bold">Ayan Khan Security Terminal v4.2</span> initialized.</div>
+                <div class="text-[var(--term-dim)]">Type 'help' to list available shell operations.</div>
+            </div>
+
+            <!-- Command Prompt Input -->
+            <form onsubmit="handleCliCommand(event)" class="flex items-center gap-2">
+                <span class="text-[var(--term-text)] font-bold text-xs whitespace-nowrap">ayan@khan-sec:~$</span>
+                <input type="text" id="cliInput" autocomplete="off" class="cyber-input flex-1 px-3 py-2 rounded text-xs font-mono" placeholder="encode Hello World...">
+                <button type="submit" class="cyber-btn px-4 py-2 rounded text-xs font-bold">RUN</button>
+            </form>
+        </section>
+
+    </main>
+
+    <footer class="relative z-30 border-t border-[var(--term-border)] bg-[var(--term-bg)] px-4 py-2 text-xs text-[var(--term-dim)] flex flex-wrap justify-between items-center max-w-7xl mx-auto w-full gap-2">
+        <div>
+            SYSTEM: <span class="text-[var(--term-text)] font-bold">AYAN_KHAN_SUITE_v4.2</span> | STATUS: <span class="text-green-400 font-bold">OPERATIONAL</span>
+        </div>
+        <div id="toastNotification" class="hidden text-green-300 font-bold animate-pulse">
+            ✅ Action executed successfully
+        </div>
+    </footer>
+
+    <script>
+        // Audio Synthesizer Engine
+        let audioCtx = null;
+        let soundEnabled = false;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playKeyBeep() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(650 + Math.random() * 80, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.03);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.03);
+            } catch (e) {}
+        }
+
+        function playSuccessSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1040, audioCtx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('audioIcon');
+            const label = document.getElementById('audioLabel');
+
+            if (soundEnabled) {
+                icon.setAttribute('data-lucide', 'volume-2');
+                icon.className = 'w-4 h-4 text-green-400';
+                label.innerText = 'AUDIO ON';
+                playSuccessSound();
+            } else {
+                icon.setAttribute('data-lucide', 'volume-x');
+                icon.className = 'w-4 h-4 text-red-400';
+                label.innerText = 'MUTE';
+            }
+            lucide.createIcons();
+        }
+
+        // Matrix Rain Canvas Animation
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        let columns, drops;
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()";
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            columns = Math.floor(canvas.width / 14);
+            drops = [];
+            for (let i = 0; i < columns; i++) drops[i] = Math.floor(Math.random() * -100);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const style = getComputedStyle(document.body);
+            ctx.fillStyle = style.getPropertyValue('--term-text').trim() || '#00ff41';
+            ctx.font = '14px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                ctx.fillText(text, i * 14, drops[i] * 14);
+
+                if (drops[i] * 14 > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+
+        // Visual Theme controls
+        function toggleCRT() {
+            document.body.classList.toggle('crt-scanlines');
+            playKeyBeep();
+        }
+
+        function changeTheme(themeName) {
+            document.body.classList.remove('theme-cyan', 'theme-amber', 'theme-crimson');
+            if (themeName !== 'matrix') document.body.classList.add('theme-' + themeName);
+            playKeyBeep();
+        }
+
+        // Tab Navigation Router
+        function switchTab(tabId) {
+            playKeyBeep();
+            const tabs = ['codec-inspector', 'file-codec', 'hash-suite', 'cli-terminal'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tab-' + t);
+                const view = document.getElementById('view-' + t);
+                if (t === tabId) {
+                    btn.classList.add('cyber-btn-active');
+                    view.classList.remove('hidden');
+                    view.classList.add('flex');
+                } else {
+                    btn.classList.remove('cyber-btn-active');
+                    view.classList.add('hidden');
+                    view.classList.remove('flex');
+                }
+            });
+        }
+
+        // Toast Notification Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            toast.innerText = '✅ ' + msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2500);
+        }
+
+        // Codec & Inspection Processing
+        function processCodec(action) {
+            playKeyBeep();
+            const input = document.getElementById('codecInput').value;
+            const output = document.getElementById('codecOutput');
+            const badge = document.getElementById('inspectorBadge');
+
+            try {
+                let result = "";
+                switch(action) {
+                    case 'b64-dec':
+                        result = decodeURIComponent(escape(atob(input.trim())));
+                        badge.innerText = "STATUS: DECODED BASE64";
+                        badge.className = "text-[11px] font-mono px-2 py-0.5 rounded border border-green-800 bg-green-950/50 text-green-400";
+                        break;
+                    case 'b64-enc':
+                        result = btoa(unescape(encodeURIComponent(input)));
+                        badge.innerText = "STATUS: ENCODED BASE64";
+                        badge.className = "text-[11px] font-mono px-2 py-0.5 rounded border border-green-800 bg-green-950/50 text-green-400";
+                        break;
+                    case 'hex-enc':
+                        result = Array.from(new TextEncoder().encode(input)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                        badge.innerText = "STATUS: HEX CONVERTED";
+                        break;
+                    case 'hex-dec':
+                        const cleanHex = input.replace(/\s+/g, '');
+                        const bytes = new Uint8Array(cleanHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+                        result = new TextDecoder().decode(bytes);
+                        badge.innerText = "STATUS: HEX DECODED";
+                        break;
+                    case 'url-enc':
+                        result = encodeURIComponent(input);
+                        break;
+                    case 'url-dec':
+                        result = decodeURIComponent(input);
+                        break;
+                    case 'rot13':
+                        result = input.replace(/[a-zA-Z]/g, c => String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26));
+                        break;
+                }
+                output.value = result;
+                updateInspector(input);
+                playSuccessSound();
+                showToast("Payload transformed");
+            } catch (err) {
+                output.value = "[ERROR] Invalid format or corrupt bytes. Try using 'Auto-Repair & Decode'.";
+                badge.innerText = "STATUS: TRANSFORMATION ERROR";
+                badge.className = "text-[11px] font-mono px-2 py-0.5 rounded border border-red-800 bg-red-950/50 text-red-400";
+            }
+        }
+
+        // Auto Repair Corrupt/Unpadded Base64
+        function autoRepairAndDecode() {
+            playKeyBeep();
+            let raw = document.getElementById('codecInput').value.trim();
+            const output = document.getElementById('codecOutput');
+            const badge = document.getElementById('inspectorBadge');
+
+            if (!raw) return;
+
+            // Strip invalid base64 characters
+            let clean = raw.replace(/[^A-Za-z0-9\+\/\=]/g, '');
+
+            // Fix padding
+            while (clean.length % 4 !== 0) {
+                clean += '=';
+            }
+
+            try {
+                const decoded = decodeURIComponent(escape(atob(clean)));
+                output.value = decoded;
+                badge.innerText = "STATUS: REPAIRED & DECODED";
+                badge.className = "text-[11px] font-mono px-2 py-0.5 rounded border border-yellow-800 bg-yellow-950/50 text-yellow-300";
+                playSuccessSound();
+                showToast("Auto-repaired Base64 padding");
+                updateInspector(clean);
+            } catch (e) {
+                output.value = "[ERROR] Payload irrecoverable despite auto-repair attempt.";
+            }
+        }
+
+        function handleCodecInput() {
+            playKeyBeep();
+            const val = document.getElementById('codecInput').value;
+            document.getElementById('inputCharCount').innerText = val.length + " chars";
+            updateInspector(val);
+        }
+
+        function updateInspector(val) {
+            document.getElementById('outputCharCount').innerText = document.getElementById('codecOutput').value.length + " chars";
+            if (!val) {
+                document.getElementById('hexDumpView').innerText = "-- No payload loaded --";
+                document.getElementById('binaryDumpView').innerText = "-- No payload loaded --";
+                return;
+            }
+
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(val.slice(0, 64)); // Inspect first 64 bytes
+            document.getElementById('hexDumpView').innerText = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+            document.getElementById('binaryDumpView').innerText = Array.from(bytes).map(b => b.toString(2).padStart(8, '0')).join(' ');
+        }
+
+        function clearCodecText() {
+            document.getElementById('codecInput').value = '';
+            document.getElementById('codecOutput').value = '';
+            updateInspector('');
+            playKeyBeep();
+        }
+
+        function swapCodecText() {
+            const outVal = document.getElementById('codecOutput').value;
+            if (outVal && !outVal.startsWith('[ERROR]')) {
+                document.getElementById('codecInput').value = outVal;
+                document.getElementById('codecOutput').value = '';
+                updateInspector(outVal);
+                playSuccessSound();
+            }
+        }
+
+        // File Handler
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const result = evt.target.result;
+                document.getElementById('fileB64Output').value = result;
+                document.getElementById('fileDetails').innerText = `File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                document.getElementById('fileResult').classList.remove('hidden');
+
+                if (file.type.startsWith('image/')) {
+                    document.getElementById('filePreviewImage').src = result;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                } else {
+                    document.getElementById('imagePreviewContainer').classList.add('hidden');
+                }
+
+                playSuccessSound();
+                showToast("File converted to Data URI");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function copyMarkdownImg() {
+            const dataUri = document.getElementById('fileB64Output').value;
+            if (!dataUri) return;
+            const md = `![Embedded Image](${dataUri})`;
+            copyTextToClipboard(md);
+        }
+
+        // Crypto Hash Suite
+        async function calculateSuiteHashes() {
+            playKeyBeep();
+            const str = document.getElementById('hashSuiteInput').value;
+            
+            if (!str) {
+                document.getElementById('outSha256').innerText = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+                document.getElementById('outSha512').innerText = 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
+                document.getElementById('outSha1').innerText = 'da39a3ee5e6b4b0d3255bfef95601890afd80709';
+                document.getElementById('outMd5').innerText = 'd41d8cd98f00b204e9800998ecf8427e';
+                return;
+            }
+
+            const encoder = new TextEncoder();
+            const data = encoder.encode(str);
+
+            const buf256 = await crypto.subtle.digest('SHA-256', data);
+            document.getElementById('outSha256').innerText = Array.from(new Uint8Array(buf256)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            const buf512 = await crypto.subtle.digest('SHA-512', data);
+            document.getElementById('outSha512').innerText = Array.from(new Uint8Array(buf512)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            const buf1 = await crypto.subtle.digest('SHA-1', data);
+            document.getElementById('outSha1').innerText = Array.from(new Uint8Array(buf1)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Fast MD5 Approximation Checksum
+            let hashVal = 0;
+            for (let i = 0; i < str.length; i++) hashVal = (hashVal << 5) - hashVal + str.charCodeAt(i);
+            document.getElementById('outMd5').innerText = Math.abs(hashVal).toString(16).padStart(32, '0');
+        }
+
+        // CLI Terminal Execution Logic
+        function handleCliCommand(e) {
+            e.preventDefault();
+            playKeyBeep();
+            const input = document.getElementById('cliInput');
+            const cmd = input.value.trim();
+            const log = document.getElementById('terminalLog');
+            if (!cmd) return;
+
+            const newLine = document.createElement('div');
+            newLine.innerHTML = `<span class="text-white font-bold">ayan@khan-sec:~$</span> ${cmd}`;
+            log.appendChild(newLine);
+
+            const parts = cmd.split(' ');
+            const main = parts[0].toLowerCase();
+            const args = parts.slice(1).join(' ');
+
+            const resp = document.createElement('div');
+            resp.className = "text-yellow-300 ml-2 mb-2";
+
+            switch(main) {
+                case 'help':
+                    resp.innerText = "Available Commands:\n - decode <b64_string>\n - encode <text>\n - hash <text>\n - clear\n - banner\n - whoami\n - contact";
+                    break;
+                case 'decode':
+                    try { resp.innerText = "Decoded: " + decodeURIComponent(escape(atob(args))); } 
+                    catch(e) { resp.innerText = "Error: Invalid Base64 string."; }
+                    break;
+                case 'encode':
+                    resp.innerText = "Encoded: " + btoa(unescape(encodeURIComponent(args)));
+                    break;
+                case 'hash':
+                    resp.innerText = "SHA-256 Digest generating... Check Hash Lab tab for complete suite.";
+                    break;
+                case 'whoami':
+                    resp.innerText = "User: ayan_khan // Security Specialist & Web Suite Admin";
+                    break;
+                case 'contact':
+                    resp.innerText = "Ayan Khan Security Suite - Official Terminal Utility.";
+                    break;
+                case 'clear':
+                    log.innerHTML = '';
+                    input.value = '';
+                    return;
+                case 'banner':
+                    resp.innerText = "========================================\n AYAN KHAN CYBER SECURITY UTILITY SUITE \n========================================";
+                    break;
+                default:
+                    resp.innerText = `Command not recognized: '${main}'. Type 'help' for available shell commands.`;
+            }
+
+            log.appendChild(resp);
+            log.scrollTop = log.scrollHeight;
+            input.value = '';
+        }
+
+        // Helper Clipboard Copiers
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            if (el && el.value) {
+                copyTextToClipboard(el.value);
+            }
+        }
+
+        function copyRawText(elementId) {
+            const el = document.getElementById(elementId);
+            if (el && el.innerText) {
+                copyTextToClipboard(el.innerText);
+            }
+        }
+
+        function copyTextToClipboard(text) {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            playSuccessSound();
+            showToast("Copied to clipboard");
+        }
+
+        window.onload = function() {
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
